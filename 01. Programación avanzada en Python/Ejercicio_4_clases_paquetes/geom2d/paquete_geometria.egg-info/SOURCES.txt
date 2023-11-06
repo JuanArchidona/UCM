@@ -1,0 +1,9 @@
+enunciado.md
+pyproject.toml
+paquete_geometria.egg-info/PKG-INFO
+paquete_geometria.egg-info/SOURCES.txt
+paquete_geometria.egg-info/dependency_links.txt
+paquete_geometria.egg-info/requires.txt
+paquete_geometria.egg-info/top_level.txt
+tests/test_point.py
+tests/test_vector.py
