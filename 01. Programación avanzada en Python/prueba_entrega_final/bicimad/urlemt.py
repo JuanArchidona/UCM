@@ -76,7 +76,7 @@ class UrlEMT:
         """
         if not (1 <= month <= 12):
             raise ValueError("Mes no válido")
-        if not (2021 <= year <= 2023):
+        if not (21 <= year % 100 <= 2023):
             raise ValueError("Año no válido")
 
         month_name = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
@@ -89,7 +89,7 @@ class UrlEMT:
         raise ValueError("No se encuentra una URL válida para el mes y año dados")
 
 
-    def get_csv(self, url: str) -> TextIO:
+    def get_csv(self, month: int, year: int) -> TextIO:
         """
         Devuelve un objeto TextIO representando el contenido de un archivo CSV.
 
@@ -110,6 +110,7 @@ class UrlEMT:
         ConnectionError:
             Si la consulta al servidor EMT falla.
         """
+        url = self.get_url(month, year)
         response = requests.get(url)
         if response.status_code != 200:
             raise ConnectionError("No se puede descargar el archivo")
