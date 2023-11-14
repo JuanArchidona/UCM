@@ -1,5 +1,5 @@
 import pandas as pd
-from .urlemt import UrlEMT
+from bicimad import UrlEMT
 from io import StringIO
 
 class BiciMad:
@@ -232,6 +232,3 @@ class BiciMad:
             Serie con la fecha como índice y el número total de usos como valor.
         """
         return self._data.resample('D').size()
-
-
-
