@@ -1,6 +1,6 @@
 import pytest
 import requests_mock
-from bicimad.urlemt import UrlEMT
+from bicimad import UrlEMT
 import io
 import zipfile
 
@@ -80,7 +80,7 @@ def test_get_csv(mock_request, requests_mock):
 
     url_emt = UrlEMT()
     url_emt.select_valid_urls()
-    csv_url = url_emt.get_url(6, 2021)
-    csv_text_io = url_emt.get_csv(csv_url)
+    csv_text_io = url_emt.get_csv(6, 2021)  # Actualizado para usar mes y año en lugar de URL
     assert csv_text_io is not None
     assert csv_text_io.read() == csv_content
+
