@@ -13,9 +13,7 @@ def html_response():
     return """
     <a href="https://opendata.emtmadrid.es/getattachment/ab3776ab-ba7f-4da3-bea6-e70c21c7d8be/trips_21_06_June-csv.aspx">Junio 2021</a>
     <a href="https://opendata.emtmadrid.es/getattachment/abcdefgh-ijkl-mnop-qrst-uvwxyz123456/trips_21_07_July-csv.aspx">Julio 2021</a>
-
     """
-
 
 def test_instance_creation():
     """
@@ -23,7 +21,6 @@ def test_instance_creation():
     """
     url_emt = UrlEMT()
     assert url_emt is not None
-
 
 def test_get_links(html_response):
     """
@@ -34,7 +31,6 @@ def test_get_links(html_response):
     assert "https://opendata.emtmadrid.es/getattachment/ab3776ab-ba7f-4da3-bea6-e70c21c7d8be/trips_21_06_June-csv.aspx" in links
     assert len(links) == 2
 
-
 @pytest.fixture
 def mock_request(requests_mock, html_response):
     """
@@ -44,24 +40,20 @@ def mock_request(requests_mock, html_response):
     requests_mock.get(UrlEMT.EMT + UrlEMT.GENERAL, text=html_response)
     return requests_mock
 
-
 def test_select_valid_urls(mock_request):
     """
     Prueba el método select_valid_urls de la clase UrlEMT.
     Asegura que el método devuelve un conjunto con la cantidad correcta de URL válidas.
     """
-    url_emt = UrlEMT()
-    valid_urls = url_emt.select_valid_urls()
+    valid_urls = UrlEMT.select_valid_urls()
     assert len(valid_urls) == 2
     assert "https://opendata.emtmadrid.es/getattachment/ab3776ab-ba7f-4da3-bea6-e70c21c7d8be/trips_21_06_June-csv.aspx" in valid_urls
-
 
 def test_get_url(mock_request):
     """
     Prueba el método get_url de la clase UrlEMT para asegurarse de que devuelve la URL correcta para un mes y año dados.
     """
     url_emt = UrlEMT()
-    url_emt.select_valid_urls()
     expected_url = "https://opendata.emtmadrid.es/getattachment/ab3776ab-ba7f-4da3-bea6-e70c21c7d8be/trips_21_06_June-csv.aspx"
     assert url_emt.get_url(6, 2021) == expected_url
 
@@ -83,4 +75,3 @@ def test_get_csv(mock_request, requests_mock):
     csv_text_io = url_emt.get_csv(6, 2021)  # Actualizado para usar mes y año en lugar de URL
     assert csv_text_io is not None
     assert csv_text_io.read() == csv_content
-
