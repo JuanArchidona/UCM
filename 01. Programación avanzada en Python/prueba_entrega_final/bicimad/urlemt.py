@@ -12,7 +12,7 @@ class UrlEMT:
         """
         Constructor de la clase UrlEMT. Inicializa el conjunto de enlaces encontrados en la web de EMT.
         """
-        self._valid_urls = set()
+        self._valid_urls = self.select_valid_urls()
 
     @staticmethod
     def get_links(html_text: str) -> Set[str]:
@@ -33,7 +33,8 @@ class UrlEMT:
         links = re.findall(r'href="(https://opendata.emtmadrid.es/getattachment/[a-z0-9-]+/trips_\d{2}_\d{2}_[A-Za-z]+-csv\.aspx)"', html_text)
         return set(links)
 
-    def select_valid_urls(self) -> Set[str]:
+    @staticmethod
+    def select_valid_urls() -> Set[str]:
         """
         Actualiza y devuelve el conjunto de enlaces válidos encontrados en la web de EMT.
 
@@ -47,11 +48,10 @@ class UrlEMT:
         ConnectionError:
             Si la consulta a EMT falla.
         """
-        response = requests.get(self.EMT + self.GENERAL)
+        response = requests.get(UrlEMT.EMT + UrlEMT.GENERAL)
         if response.status_code != 200:
             raise ConnectionError("No se puede acceder a la página de la EMT")
-        self._valid_urls = self.get_links(response.text)
-        return self._valid_urls
+        return UrlEMT.get_links(response.text)
 
     def get_url(self, month: int, year: int) -> str:
         """
