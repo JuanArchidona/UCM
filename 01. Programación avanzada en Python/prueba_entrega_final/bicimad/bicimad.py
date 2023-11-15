@@ -1,6 +1,6 @@
 import pandas as pd
 from bicimad import UrlEMT
-from io import StringIO
+from typing import Set
 
 class BiciMad:
     """
@@ -10,7 +10,7 @@ class BiciMad:
 
     def __init__(self, month: int, year: int) -> None:
         """
-        Constructor para BiciMad.
+        Constructor de la clase BiciMad.
 
         Parameters:
         --------
@@ -19,21 +19,9 @@ class BiciMad:
         year: int
             Año de los datos.
         """
-
-        self.validate_date(month, year)
         self._month = month
         self._year = year
         self._data = self.get_data(month, year)
-
-    @staticmethod
-    def validate_date(month: int, year: int):
-        """
-        Valida que el mes y el año sean correctos
-        """
-        if not 1 <= month <= 12:
-            raise ValueError("El mes proporcionado no es válido. Debe estar entre 1 y 12.")
-        if not 2000 <= year <= 2100:
-            raise ValueError("El año proporcionado no es válido. Debe estar entre 2000 y 2100.")
 
     @staticmethod
     def get_data(month: int, year: int) -> pd.DataFrame:
@@ -52,42 +40,11 @@ class BiciMad:
         pd.DataFrame
             Un DataFrame con los datos de uso de las bicicletas.
         """
-        BiciMad.validate_date(month, year)
-
         url_emt = UrlEMT()
-        url_emt.select_valid_urls()
-
-        try:
-            csv_url = url_emt.get_url(month, year)
-            csv_text = url_emt.get_csv(csv_url)
-        except Exception as e:
-            raise ValueError(f"No se pudo obtener los datos para el mes {month} y año {year}: {e}")
-
-        try:
-            data = pd.read_csv(StringIO(csv_text), sep=';', parse_dates=['unlock_date', 'lock_date'])
-        except ValueError:
-            raise ValueError("Error al leer el CSV. Asegúrate de que el formato del CSV es correcto.")
-
-        BiciMad.validate_data_columns(data)
-
-        data.set_index('unlock_date', inplace=True)
-
-        return data
-
-    @staticmethod
-    def validate_data_columns(data: pd.DataFrame):
-        required_columns = [
-            'idBike', 'fleet', 'trip_minutes', 'geolocation_unlock', 'address_unlock',
-            'locktype', 'unlocktype', 'geolocation_lock', 'address_lock', 'lock_date',
-            'station_unlock', 'unlock_station_name', 'station_lock', 'lock_station_name'
-        ]
-
-        missing_columns = set(required_columns) - set(data.columns)
-        if missing_columns:
-            raise ValueError(f"Faltan las siguientes columnas esperadas en los datos: {missing_columns}")
-
-        if 'unlock_date' not in data.columns or not pd.api.types.is_datetime64_any_dtype(data['unlock_date']):
-            raise ValueError("Los datos CSV no contienen 'unlock_date' como una columna de fecha y hora válida.")
+        csv_text_io = url_emt.get_csv(month, year)
+        df = pd.read_csv(csv_text_io, parse_dates=['unlock_date', 'lock_date'], dayfirst=True)
+        df.set_index('unlock_date', inplace=True) # Damos por válido que unlock_date es la fecha del viaje
+        return df
 
     @property
     def data(self) -> pd.DataFrame:
@@ -116,18 +73,9 @@ class BiciMad:
         """
         Limpia y prepara el DataFrame para el análisis.
         """
-        self._data.dropna(axis=0, how='all', inplace=True)
-        self._data['fleet'] = self._data['fleet'].astype(str)
-        self._data['idBike'] = self._data['idBike'].astype(str)
+        self._data.dropna(how='all', inplace=True)
+        self._data[['fleet', 'idBike', 'station_lock', 'station_unlock']] = self._data[['fleet', 'idBike', 'station_lock', 'station_unlock']].astype(str)
 
-        # Convierte a string si las columnas existen
-        for column in ['station_lock', 'station_unlock']:
-            if column in self._data.columns:
-                self._data[column] = self._data[column].astype(str)
-
-        # Asegura que las fechas están en formato datetime si no lo están ya
-        if not pd.api.types.is_datetime64_dtype(self._data.index):
-            self._data.index = pd.to_datetime(self._data.index)
 
     def resume(self) -> pd.Series:
         """
@@ -143,7 +91,7 @@ class BiciMad:
         most_popular_stations = self.most_popular_stations()
         uses_from_most_popular = self.usage_from_most_popular_unlock_station()
 
-        return pd.Series({
+        summary = pd.Series({
             'year': self._year,
             'month': self._month,
             'total_uses': total_uses,
@@ -151,8 +99,9 @@ class BiciMad:
             'most_popular_stations': most_popular_stations,
             'uses_from_most_popular': uses_from_most_popular
         })
+        return summary
 
-    def most_popular_stations(self) -> set:
+    def most_popular_stations(self) -> Set[str]:
         """
         Identifica las estaciones de desbloqueo más populares.
 
@@ -160,16 +109,11 @@ class BiciMad:
         --------
         set:
             Conjunto con los nombres de las estaciones más populares.
-
-        Examples:
-        --------
-        >>> bicimad = BiciMad(month=6, year=2021)
-        >>> bicimad.most_popular_stations()
-        {'Plaza Picasso', 'Santiago Bernabeu'}
         """
-        conteo_estacion = self._data['unlock_station_name'].value_counts()
-        max_value = conteo_estacion.max()
-        return set(conteo_estacion[conteo_estacion == max_value].index)
+        conteo_estacion = self._data.groupby('unlock_station_name').size()
+        maximo_viajes = conteo_estacion.max()
+        estaciones_mas_populares = set(conteo_estacion[conteo_estacion == maximo_viajes].index)
+        return estaciones_mas_populares
 
     def usage_from_most_popular_unlock_station(self) -> int:
         """
@@ -179,19 +123,10 @@ class BiciMad:
         --------
         int:
             Número de usos de la estación de desbloqueo más popular.
-
-        Examples:
-        --------
-        >>> bicimad = BiciMad(month=6, year=2021)
-        >>> bicimad.usage_from_most_popular_unlock_station()
-        532
         """
-        most_popular = self.most_popular_stations()
-        if not most_popular:
-            return 0
-        # Suponiendo que solo hay una estación más popular.
-        # En caso contrario se puede modificar para poder devolver múltiples estaciones.
-        return self._data[self._data['unlock_station_name'].isin(most_popular)].shape[0]
+        conteo_estacion = self._data.groupby('station_unlock').size()
+        maximo_viajes = conteo_estacion.max()
+        return maximo_viajes
 
     def day_time(self) -> pd.Series:
         """
@@ -215,7 +150,7 @@ class BiciMad:
             Una serie donde el índice es el día de la semana (L, M, X, J, V, S, D) y el valor es el número de horas.
         """
         if 'trip_hours' not in self._data.columns:
-            self._data['trip_hours'] = self.data['trip_minutes'] / 60
+            self._data['trip_hours'] = self._data['trip_minutes'] / 60
         self._data['weekday'] = self._data.index.dayofweek
         days = {0: 'L', 1: 'M', 2: 'X', 3: 'J', 4: 'V', 5: 'S', 6: 'D'}
         self._data['weekday'] = self._data['weekday'].map(days)
